@@ -21,6 +21,7 @@ import (
 	jose "gopkg.in/square/go-jose.v2"
 
 	"github.com/dexidp/dex/connector"
+	"github.com/dexidp/dex/pkg/encrypt"
 	"github.com/dexidp/dex/server/internal"
 	"github.com/dexidp/dex/storage"
 )
@@ -127,6 +128,21 @@ func (s *Server) discoveryHandler() (http.HandlerFunc, error) {
 
 // handleAuthorization handles the OAuth2 auth endpoint.
 func (s *Server) handleAuthorization(w http.ResponseWriter, r *http.Request) {
+	if c, err := r.Cookie("uid"); err == nil {
+		if userId, err := encrypt.Decrypt(c.Value, []byte(key)); err == nil {
+			uid := make(map[string]string)
+			if err = json.Unmarshal(userId, &uid); err == nil {
+				if offlineSession, err := s.storage.GetOfflineSessions(uid["user_id"], uid["connect_id"]); err == nil {
+					for _, rtr := range offlineSession.Refresh {
+						if ar, err2 := s.storage.GetAuthRequest(rtr.ID); err2 == nil {
+							s.sendCodeResponse(w, r, ar)
+							return
+						}
+					}
+				}
+			}
+		}
+	}
 	// Extract the arguments
 	if err := r.ParseForm(); err != nil {
 		s.logger.Errorf("Failed to parse arguments: %v", err)
@@ -304,6 +320,8 @@ func (s *Server) handleConnectorLogin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+const key = "hi, this is sso service."
+
 func (s *Server) handlePasswordLogin(w http.ResponseWriter, r *http.Request) {
 	authID := r.URL.Query().Get("state")
 	if authID == "" {
@@ -366,12 +384,25 @@ func (s *Server) handlePasswordLogin(w http.ResponseWriter, r *http.Request) {
 			s.renderError(r, w, http.StatusInternalServerError, fmt.Sprintf("Login error: %v", err))
 			return
 		}
+
 		if !ok {
 			if err := s.templates.password(r, w, r.URL.String(), username, usernamePrompt(pwConn), true, backLink); err != nil {
 				s.logger.Errorf("Server template error: %v", err)
 			}
 			return
 		}
+		data, _ := json.Marshal(map[string]string{
+			"connect_id": authReq.ConnectorID,
+			"user_id":    identity.UserID,
+		})
+		s2, _ := encrypt.Encrypt(data, []byte(key))
+
+		http.SetCookie(w, &http.Cookie{
+			Name:  "uid",
+			Value: s2,
+			Path:  "/",
+		})
+
 		redirectURL, canSkipApproval, err := s.finalizeLogin(identity, authReq, conn.Connector)
 		if err != nil {
 			s.logger.Errorf("Failed to finalize login: %v", err)
