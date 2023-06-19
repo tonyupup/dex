@@ -121,17 +121,57 @@ connectors:
 - type: mockCallback
   id: mock
   name: Example
-# - type: google
-#   id: google
-#   name: Google
-#   config:
-#     issuer: https://accounts.google.com
-#     # Connector config values starting with a "$" will read from the environment.
-#     clientID: $GOOGLE_CLIENT_ID
-#     clientSecret: $GOOGLE_CLIENT_SECRET
-#     redirectURI: http://127.0.0.1:5556/dex/callback
-#     hostedDomains:
-#     - $GOOGLE_HOSTED_DOMAIN
+- type: ldap
+  name: OpenLDAP
+  id: ldap
+  config:
+    # The following configurations seem to work with OpenLDAP:
+    #
+    # 1) Plain LDAP, without TLS:
+    host: ldap.jumpcloud.com:389
+    insecureNoSSL: true
+    #
+    # 2) LDAPS without certificate validation:
+    #host: localhost:636
+    #insecureNoSSL: false
+    #insecureSkipVerify: true
+    #
+    # 3) LDAPS with certificate validation:
+    #host: YOUR-HOSTNAME:636
+    #insecureNoSSL: false
+    #insecureSkipVerify: false
+    #rootCAData: 'CERT'
+    # ...where CERT="$( base64 -w 0 your-cert.crt )"
+
+    # This would normally be a read-only user.
+    bindDN: uid=searcher,ou=Users,o=6320523663a2cf7209e98530,dc=jumpcloud,dc=com
+    bindPW: Search.123
+
+    usernamePrompt: Email Address
+
+    userSearch:
+      baseDN: ou=Users,o=6320523663a2cf7209e98530,dc=jumpcloud,dc=com
+      filter: "(objectClass=person)"
+      username: mail
+      # "DN" (case sensitive) is a special attribute name. It indicates that
+      # this value should be taken from the entity's DN not an attribute on
+      # the entity.
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+
+    groupSearch:
+      baseDN: ou=Users,o=6320523663a2cf7209e98530,dc=jumpcloud,dc=com
+      filter: "(objectClass=posixGroup)"
+
+      userMatchers:
+        # A user is a member of a group when their DN matches
+        # the value of a "member" attribute on the group entity.
+      - userAttr: uid
+        groupAttr: memberUid
+
+      # The group name should be the "cn" value.
+      nameAttr: cn
 
 # Let dex keep a list of passwords which can be used to login to dex.
 enablePasswordDB: true
@@ -143,6 +183,6 @@ enablePasswordDB: true
 staticPasswords:
 - email: "admin@example.com"
   # bcrypt hash of the string "password": $(echo password | htpasswd -BinC 10 admin | cut -d: -f2)
-  hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+  hash: "$2y$10$xRFw4GHUXdg9s6pEy5McIunh9odFQQTgRgzOA15PoOYiYO39kuqmC"
   username: "admin"
   userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
