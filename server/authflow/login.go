@@ -16,6 +16,7 @@ import (
 	"github.com/dexidp/dex/connector"
 	"github.com/dexidp/dex/server/connectors"
 	"github.com/dexidp/dex/server/oauth2"
+	"github.com/dexidp/dex/server/tokens"
 	"github.com/dexidp/dex/storage"
 )
 
@@ -135,7 +136,7 @@ func (h *Handler) handleConnectorLogin(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	scopes := h.connectorScopes(authReq.Scopes)
+	scopes := tokens.ParseScopes(authReq.Scopes)
 
 	// Work out where the "Select another login method" link should go.
 	// Include prompt=select_account so that handleAuthorization skips

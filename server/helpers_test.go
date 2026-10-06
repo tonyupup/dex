@@ -328,17 +328,3 @@ func newTestServerWithSessions(t *testing.T, updateConfig func(c *Config)) (*htt
 		}
 	})
 }
-
-// scopeAwarePasswordConnector mimics connectors such as LDAP that only look up
-// groups when the login request asks for them.
-type scopeAwarePasswordConnector struct{ groups []string }
-
-func (c scopeAwarePasswordConnector) Prompt() string { return "" }
-
-func (c scopeAwarePasswordConnector) Login(ctx context.Context, s connector.Scopes, u, p string) (connector.Identity, bool, error) {
-	id := connector.Identity{UserID: "user-id", Username: "user", Email: "user@example.com", EmailVerified: true}
-	if s.Groups {
-		id.Groups = c.groups
-	}
-	return id, true, nil
-}
