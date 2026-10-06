@@ -481,7 +481,24 @@ type UserIdentity struct {
 	CreatedAt           time.Time
 	LastLogin           time.Time
 	BlockedUntil        time.Time
+
+	// ConnectorScopes records which connector-relevant scopes (see the
+	// ConnectorScope* constants) the connector has already served on the user's
+	// most recent real connector logins. Session reuse consults it to decide
+	// whether the cached claims are sufficient for the scopes a client requests.
+	// Empty on rows written before the field existed, meaning "nothing fetched".
+	ConnectorScopes []string
 }
+
+// Connector scope markers stored in UserIdentity.ConnectorScopes.
+const (
+	// ConnectorScopeGroups: the connector was asked for groups, so the cached
+	// claims' groups are authoritative.
+	ConnectorScopeGroups = "groups"
+	// ConnectorScopeOfflineAccess: offline_access was processed for a refresh
+	// capable connector (offline session and connector data were saved).
+	ConnectorScopeOfflineAccess = "offline_access"
+)
 
 // ClientAuthState represents authentication state for a specific client within an auth session.
 type ClientAuthState struct {

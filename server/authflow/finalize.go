@@ -77,6 +77,17 @@ func (h *Handler) finalizeLogin(ctx context.Context, identity connector.Identity
 	}
 	_, canRefresh := conn.(connector.RefreshConnector)
 
+	// Scopes the connector actually served on this login; recorded on the
+	// UserIdentity so session reuse can tell what the cached claims cover.
+	var served []string
+	groupsFetched := scopesContain(authReq.Scopes, tokens.ScopeGroups)
+	if groupsFetched {
+		served = append(served, storage.ConnectorScopeGroups)
+	}
+	if offlineAccessRequested && canRefresh {
+		served = append(served, storage.ConnectorScopeOfflineAccess)
+	}
+
 	if offlineAccessRequested && canRefresh {
 		// Try to retrieve an existing OfflineSession object for the corresponding user.
 		session, err := h.Storage.GetOfflineSessions(ctx, identity.UserID, authReq.ConnectorID)
@@ -126,6 +137,8 @@ func (h *Handler) finalizeLogin(ctx context.Context, identity connector.Identity
 				Consents:    make(map[string][]string),
 				CreatedAt:   now,
 				LastLogin:   now,
+
+				ConnectorScopes: served,
 			}
 			if err := h.Storage.CreateUserIdentity(ctx, ui); err != nil {
 				h.Logger.ErrorContext(ctx, "failed to create user identity", "err", err)
@@ -133,7 +146,14 @@ func (h *Handler) finalizeLogin(ctx context.Context, identity connector.Identity
 			}
 		case err == nil:
 			if err := h.Storage.UpdateUserIdentity(ctx, identity.UserID, authReq.ConnectorID, func(old storage.UserIdentity) (storage.UserIdentity, error) {
+				if !groupsFetched && containsString(old.ConnectorScopes, storage.ConnectorScopeGroups) {
+					// This login did not ask the connector for groups, so its
+					// claims carry none. Keep the groups fetched earlier instead of
+					// wiping them while the record still says they were fetched.
+					claims.Groups = old.Claims.Groups
+				}
 				old.Claims = claims
+				old.ConnectorScopes = unionStrings(old.ConnectorScopes, served)
 				old.LastLogin = now
 				return old, nil
 			}); err != nil {
@@ -149,4 +169,28 @@ func (h *Handler) finalizeLogin(ctx context.Context, identity connector.Identity
 	// The identity is persisted; return the finalized request so the caller can
 	// create the session and advance the flow.
 	return h.Storage.GetAuthRequest(ctx, authReq.ID)
+}
+
+func scopesContain(scopes []string, want string) bool {
+	return containsString(scopes, want)
+}
+
+func containsString(list []string, want string) bool {
+	for _, s := range list {
+		if s == want {
+			return true
+		}
+	}
+	return false
+}
+
+// unionStrings returns a followed by the elements of b that a lacks.
+func unionStrings(a, b []string) []string {
+	out := append([]string(nil), a...)
+	for _, s := range b {
+		if !containsString(out, s) {
+			out = append(out, s)
+		}
+	}
+	return out
 }

@@ -2,9 +2,12 @@ package authflow
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
+	"github.com/dexidp/dex/connector"
+	"github.com/dexidp/dex/server/tokens"
 	"github.com/dexidp/dex/storage"
 )
 
@@ -69,12 +72,62 @@ func (h *Handler) trySessionLoginWithSession(ctx context.Context, r *http.Reques
 		}
 	}
 
+	// The cached claims only cover the scopes the connector was asked for when
+	// the user last really logged in. If this request needs more, fall back to a
+	// full connector login, which refreshes the cache.
+	if !h.sessionCoversRequest(ctx, authReq, &ui) {
+		return false
+	}
+
 	if directLogin {
 		h.Logger.DebugContext(ctx, "session: re-authenticated from session",
 			"session_id", session.ID, "user_id", session.UserID)
 	}
 
 	return h.finishSessionLogin(ctx, r, w, authReq, session, &ui, now)
+}
+
+// sessionCoversRequest reports whether the connector data cached for ui is enough
+// for the scopes authReq asks for. Only scopes that change what the connector
+// returns or stores are checked:
+//
+//   - groups: connectors such as LDAP only look groups up when asked, so the
+//     cached groups are trustworthy only if a past login requested them.
+//   - offline_access: for a refresh-capable connector, finalizeLogin saves the
+//     OfflineSessions (and its ConnectorData) that refresh tokens depend on.
+//     Session reuse skips finalizeLogin, so require that an earlier login did it
+//     and that the offline session still exists.
+//
+// Rows written before UserIdentity.ConnectorScopes existed cover nothing.
+func (h *Handler) sessionCoversRequest(ctx context.Context, authReq *storage.AuthRequest, ui *storage.UserIdentity) bool {
+	if scopesContain(authReq.Scopes, tokens.ScopeGroups) &&
+		!containsString(ui.ConnectorScopes, storage.ConnectorScopeGroups) {
+		h.Logger.DebugContext(ctx, "session: cached identity lacks groups, full login required",
+			"user_id", ui.UserID, "connector_id", ui.ConnectorID, "client_id", authReq.ClientID)
+		return false
+	}
+
+	if scopesContain(authReq.Scopes, tokens.ScopeOfflineAccess) {
+		conn, err := h.Connectors.Get(ctx, ui.ConnectorID)
+		if err != nil {
+			h.Logger.ErrorContext(ctx, "session: failed to get connector", "connector_id", ui.ConnectorID, "err", err)
+			return false
+		}
+		if _, ok := conn.Connector.(connector.RefreshConnector); ok {
+			if !containsString(ui.ConnectorScopes, storage.ConnectorScopeOfflineAccess) {
+				h.Logger.DebugContext(ctx, "session: offline_access not yet processed, full login required",
+					"user_id", ui.UserID, "connector_id", ui.ConnectorID, "client_id", authReq.ClientID)
+				return false
+			}
+			if _, err := h.Storage.GetOfflineSessions(ctx, ui.UserID, ui.ConnectorID); err != nil {
+				if !errors.Is(err, storage.ErrNotFound) {
+					h.Logger.ErrorContext(ctx, "session: failed to get offline session", "err", err)
+				}
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // finishSessionLogin completes a session-based login (direct or SSO) by updating the auth request
