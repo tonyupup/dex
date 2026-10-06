@@ -1333,6 +1333,8 @@ func testUserIdentityCRUD(t *testing.T, s storage.Storage) {
 		CreatedAt:    now,
 		LastLogin:    now,
 		BlockedUntil: time.Unix(0, 0).UTC(),
+
+		ConnectorScopes: []string{"groups"},
 	}
 
 	// Create with empty Consents map.
@@ -1361,6 +1363,7 @@ func testUserIdentityCRUD(t *testing.T, s storage.Storage) {
 	// Update: add consent entry.
 	if err := s.UpdateUserIdentity(ctx, u1.UserID, u1.ConnectorID, func(old storage.UserIdentity) (storage.UserIdentity, error) {
 		old.Consents["client1"] = []string{"openid", "email"}
+		old.ConnectorScopes = append(old.ConnectorScopes, "offline_access")
 		return old, nil
 	}); err != nil {
 		t.Fatalf("update user identity: %v", err)
@@ -1374,6 +1377,9 @@ func testUserIdentityCRUD(t *testing.T, s storage.Storage) {
 	wantConsents := map[string][]string{"client1": {"openid", "email"}}
 	if diff := pretty.Compare(wantConsents, got.Consents); diff != "" {
 		t.Errorf("user identity consents did not match after update: %s", diff)
+	}
+	if diff := pretty.Compare([]string{"groups", "offline_access"}, got.ConnectorScopes); diff != "" {
+		t.Errorf("user identity connector scopes did not match after update: %s", diff)
 	}
 
 	// List and verify.

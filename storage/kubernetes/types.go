@@ -968,6 +968,7 @@ type UserIdentity struct {
 	CreatedAt           time.Time                               `json:"createdAt,omitempty"`
 	LastLogin           time.Time                               `json:"lastLogin,omitempty"`
 	BlockedUntil        time.Time                               `json:"blockedUntil,omitempty"`
+	ConnectorScopes     []string                                `json:"connectorScopes,omitempty"`
 }
 
 // UserIdentityList is a list of UserIdentities.
@@ -996,6 +997,7 @@ func (cli *client) fromStorageUserIdentity(u storage.UserIdentity) UserIdentity 
 		CreatedAt:           u.CreatedAt,
 		LastLogin:           u.LastLogin,
 		BlockedUntil:        u.BlockedUntil,
+		ConnectorScopes:     u.ConnectorScopes,
 	}
 }
 
@@ -1010,6 +1012,7 @@ func toStorageUserIdentity(u UserIdentity) storage.UserIdentity {
 		CreatedAt:           u.CreatedAt,
 		LastLogin:           u.LastLogin,
 		BlockedUntil:        u.BlockedUntil,
+		ConnectorScopes:     u.ConnectorScopes,
 	}
 	if s.Consents == nil {
 		// Server code assumes this will be non-nil.

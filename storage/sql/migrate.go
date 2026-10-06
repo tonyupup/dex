@@ -507,4 +507,12 @@ var migrations = []migration{
 			`alter table auth_code add column session_id text not null default '';`,
 		},
 	},
+	{
+		// Records which scopes the connector has served for a user identity, so
+		// session reuse can tell whether cached claims cover a client's request.
+		// Nullable: rows written before this column existed read as empty.
+		stmts: []string{
+			`alter table user_identity add column connector_scopes bytea;`,
+		},
+	},
 }

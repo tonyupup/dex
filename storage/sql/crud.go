@@ -835,17 +835,17 @@ func (c *conn) CreateUserIdentity(ctx context.Context, u storage.UserIdentity) e
 			claims_user_id, claims_username, claims_preferred_username,
 			claims_email, claims_email_verified, claims_groups,
 			consents, mfa_secrets, webauthn_credentials,
-			created_at, last_login, blocked_until
+			created_at, last_login, blocked_until, connector_scopes
 		)
 		values (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
 		);
 	`,
 		u.UserID, u.ConnectorID,
 		u.Claims.UserID, u.Claims.Username, u.Claims.PreferredUsername,
 		u.Claims.Email, u.Claims.EmailVerified, encoder(u.Claims.Groups),
 		encoder(u.Consents), encoder(u.MFASecrets), encoder(u.WebAuthnCredentials),
-		u.CreatedAt, u.LastLogin, u.BlockedUntil,
+		u.CreatedAt, u.LastLogin, u.BlockedUntil, encoder(u.ConnectorScopes),
 	)
 	if err != nil {
 		if c.alreadyExistsCheck(err) {
@@ -881,13 +881,15 @@ func (c *conn) UpdateUserIdentity(ctx context.Context, userID, connectorID strin
 				webauthn_credentials = $9,
 				created_at = $10,
 				last_login = $11,
-				blocked_until = $12
-			where user_id = $13 AND connector_id = $14;
+				blocked_until = $12,
+				connector_scopes = $13
+			where user_id = $14 AND connector_id = $15;
 		`,
 			newIdentity.Claims.UserID, newIdentity.Claims.Username, newIdentity.Claims.PreferredUsername,
 			newIdentity.Claims.Email, newIdentity.Claims.EmailVerified, encoder(newIdentity.Claims.Groups),
 			encoder(newIdentity.Consents), encoder(newIdentity.MFASecrets), encoder(newIdentity.WebAuthnCredentials),
 			newIdentity.CreatedAt, newIdentity.LastLogin, newIdentity.BlockedUntil,
+			encoder(newIdentity.ConnectorScopes),
 			u.UserID, u.ConnectorID,
 		)
 		if err != nil {
@@ -908,7 +910,7 @@ func getUserIdentity(ctx context.Context, q querier, userID, connectorID string)
 			claims_user_id, claims_username, claims_preferred_username,
 			claims_email, claims_email_verified, claims_groups,
 			consents, mfa_secrets, webauthn_credentials,
-			created_at, last_login, blocked_until
+			created_at, last_login, blocked_until, connector_scopes
 		from user_identity
 		where user_id = $1 AND connector_id = $2;
 		`, userID, connectorID))
@@ -921,7 +923,7 @@ func (c *conn) ListUserIdentities(ctx context.Context) ([]storage.UserIdentity, 
 			claims_user_id, claims_username, claims_preferred_username,
 			claims_email, claims_email_verified, claims_groups,
 			consents, mfa_secrets, webauthn_credentials,
-			created_at, last_login, blocked_until
+			created_at, last_login, blocked_until, connector_scopes
 		from user_identity;
 	`)
 	if err != nil {
@@ -944,13 +946,13 @@ func (c *conn) ListUserIdentities(ctx context.Context) ([]storage.UserIdentity, 
 }
 
 func scanUserIdentity(s scanner) (u storage.UserIdentity, err error) {
-	var mfaSecrets, webauthnCreds []byte
+	var mfaSecrets, webauthnCreds, connectorScopes []byte
 	err = s.Scan(
 		&u.UserID, &u.ConnectorID,
 		&u.Claims.UserID, &u.Claims.Username, &u.Claims.PreferredUsername,
 		&u.Claims.Email, &u.Claims.EmailVerified, decoder(&u.Claims.Groups),
 		decoder(&u.Consents), &mfaSecrets, &webauthnCreds,
-		&u.CreatedAt, &u.LastLogin, &u.BlockedUntil,
+		&u.CreatedAt, &u.LastLogin, &u.BlockedUntil, &connectorScopes,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -969,6 +971,11 @@ func scanUserIdentity(s scanner) (u storage.UserIdentity, err error) {
 	if len(webauthnCreds) > 0 {
 		if err := json.Unmarshal(webauthnCreds, &u.WebAuthnCredentials); err != nil {
 			return u, fmt.Errorf("unmarshal user identity webauthn credentials: %v", err)
+		}
+	}
+	if len(connectorScopes) > 0 {
+		if err := json.Unmarshal(connectorScopes, &u.ConnectorScopes); err != nil {
+			return u, fmt.Errorf("unmarshal user identity connector scopes: %v", err)
 		}
 	}
 	return u, nil
