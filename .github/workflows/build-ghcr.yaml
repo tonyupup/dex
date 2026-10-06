@@ -1,11 +1,11 @@
 name: Build GHCR image
 
-# 个人 fork 用：先跑 server 包测试，通过后构建 linux/amd64+arm64 镜像推到 ghcr.io/<owner>/dex。
+# 个人 fork 用：先跑 vet/gofmt 与 server、storage 包测试，通过后构建 linux/amd64+arm64 镜像推到 ghcr.io/<owner>/dex。
 # 手机/本机不做构建，一律走这里。
 
 on:
   push:
-    branches: [master, fix/session-groups-decouple]
+    branches: [master, fix/session-groups-decouple, fix/session-scope-coverage]
   workflow_dispatch:
 
 permissions:
@@ -26,7 +26,19 @@ jobs:
         with:
           go-version-file: go.mod
       - run: go build ./...
-      - run: go test -count=1 ./server/...
+      - name: go vet
+        run: go vet ./server/... ./storage/...
+      - name: gofmt
+        run: |
+          out=$(gofmt -l ./server ./storage)
+          if [ -n "$out" ]; then
+            echo "以下文件未经 gofmt 格式化："
+            echo "$out"
+            exit 1
+          fi
+      # storage 里 postgres/mysql/etcd/k8s 的测试依赖外部服务，未设置对应环境变量时会自动 skip；
+      # memory/sqlite3(ent、sql) 的一致性测试可以直接跑。
+      - run: go test -count=1 ./server/... ./storage/...
 
   image:
     name: Build and push image
