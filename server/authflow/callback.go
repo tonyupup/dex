@@ -11,7 +11,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/dexidp/dex/connector"
-	"github.com/dexidp/dex/server/tokens"
 	"github.com/dexidp/dex/storage"
 )
 
@@ -72,14 +71,14 @@ func (h *Handler) handleConnectorCallback(w http.ResponseWriter, r *http.Request
 			h.renderError(r, w, http.StatusBadRequest, "Invalid request")
 			return
 		}
-		identity, err = conn.HandleCallback(tokens.ParseScopes(authReq.Scopes), authReq.ConnectorData, r)
+		identity, err = conn.HandleCallback(h.connectorScopes(authReq.Scopes), authReq.ConnectorData, r)
 	case connector.SAMLConnector:
 		if r.Method != http.MethodPost {
 			h.Logger.ErrorContext(r.Context(), "OAuth2 request mapped to SAML connector")
 			h.renderError(r, w, http.StatusBadRequest, "Invalid request")
 			return
 		}
-		identity, err = conn.HandlePOST(tokens.ParseScopes(authReq.Scopes), r.PostFormValue("SAMLResponse"), authReq.ID)
+		identity, err = conn.HandlePOST(h.connectorScopes(authReq.Scopes), r.PostFormValue("SAMLResponse"), authReq.ID)
 	default:
 		h.renderError(r, w, http.StatusInternalServerError, "Requested resource does not exist.")
 		return

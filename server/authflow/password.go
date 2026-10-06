@@ -10,7 +10,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/dexidp/dex/connector"
-	"github.com/dexidp/dex/server/tokens"
 	"github.com/dexidp/dex/storage"
 )
 
@@ -67,7 +66,7 @@ func (h *Handler) handlePasswordLogin(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		// Before rendering the password form, allow connectors that support SPNEGO to try Kerberos auth.
 		if sp, ok := pwConn.(connector.SPNEGOAware); ok {
-			scopes := tokens.ParseScopes(authReq.Scopes)
+			scopes := h.connectorScopes(authReq.Scopes)
 			if ident, handled, err := sp.TrySPNEGO(ctx, scopes, w, r); bool(handled) {
 				if err != nil {
 					// SPNEGO handled the request but reported an error (e.g., LDAP lookup failed
@@ -98,7 +97,7 @@ func (h *Handler) handlePasswordLogin(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		username := r.FormValue("login")
 		password := r.FormValue("password")
-		scopes := tokens.ParseScopes(authReq.Scopes)
+		scopes := h.connectorScopes(authReq.Scopes)
 
 		identity, ok, err := pwConn.Login(r.Context(), scopes, username, password)
 		if err != nil {

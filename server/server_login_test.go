@@ -764,3 +764,49 @@ func TestConnectorDataPersistence(t *testing.T) {
 	require.Equal(t, connectorData, storedSession.ConnectorData,
 		"ConnectorData should be persisted in offline session storage")
 }
+
+// TestSessionIdentityCachesGroupsRegardlessOfScope verifies that the identity
+// cached for session reuse carries groups even when the client that created the
+// session did not request the groups scope, so a later client that does request
+// them (via SSO) is not left without groups.
+func TestSessionIdentityCachesGroupsRegardlessOfScope(t *testing.T) {
+	for _, sessionsEnabled := range []bool{true, false} {
+		t.Run(fmt.Sprintf("sessions=%v", sessionsEnabled), func(t *testing.T) {
+			ctx := t.Context()
+			setSessionsEnabled(t, sessionsEnabled)
+
+			connID := "scopeAwarePw"
+			httpServer, s := newTestServer(t, func(c *Config) {
+				c.SkipApprovalScreen = true
+				c.Now = time.Now
+			})
+			defer httpServer.Close()
+
+			registerTestConnector(t, s, connID, scopeAwarePasswordConnector{groups: []string{"admin"}})
+			require.NoError(t, s.storage.CreateAuthRequest(ctx, storage.AuthRequest{
+				ID:            "no-groups-scope",
+				ClientID:      "client_1",
+				ConnectorID:   connID,
+				RedirectURI:   "cb",
+				Expiry:        time.Now().Add(100 * time.Second),
+				ResponseTypes: []string{oauth2.ResponseTypeCode},
+				Scopes:        []string{"openid", "email"},
+			}))
+
+			rr := httptest.NewRecorder()
+			path := fmt.Sprintf("/auth/%s/login?state=no-groups-scope&back=&login=foo&password=password", connID)
+			s.ServeHTTP(rr, httptest.NewRequest("POST", path, nil))
+			require.Equal(t, http.StatusSeeOther, rr.Code)
+
+			if !sessionsEnabled {
+				// Without sessions nothing is cached, so groups stay scope-driven.
+				_, err := s.storage.GetUserIdentity(ctx, "user-id", connID)
+				require.ErrorIs(t, err, storage.ErrNotFound)
+				return
+			}
+			ui, err := s.storage.GetUserIdentity(ctx, "user-id", connID)
+			require.NoError(t, err)
+			require.Equal(t, []string{"admin"}, ui.Claims.Groups)
+		})
+	}
+}

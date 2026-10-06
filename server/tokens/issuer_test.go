@@ -3,8 +3,11 @@ package tokens
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/base64"
+	"encoding/json"
 	"log/slog"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -73,4 +76,31 @@ func TestIssuerIssue(t *testing.T) {
 	require.NotEmpty(t, ts2.AccessToken)
 	require.NotEmpty(t, ts2.IDToken)
 	require.Empty(t, ts2.RefreshToken)
+}
+
+// TestIssuerGroupsFollowScope verifies that groups cached in the claims (e.g. by
+// an SSO session) reach the ID token only when the client asked for the groups scope.
+func TestIssuerGroupsFollowScope(t *testing.T) {
+	ctx := t.Context()
+	iss, _ := newTestIssuer(t)
+
+	groupsOf := func(scopes []string) []string {
+		auth := testAuthorization()
+		auth.Claims.Groups = []string{"admin"}
+		auth.Scopes = scopes
+		ts, err := iss.Issue(ctx, auth, "", false)
+		require.NoError(t, err)
+		parts := strings.Split(ts.IDToken, ".")
+		require.Len(t, parts, 3)
+		payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+		require.NoError(t, err)
+		var claims struct {
+			Groups []string `json:"groups"`
+		}
+		require.NoError(t, json.Unmarshal(payload, &claims))
+		return claims.Groups
+	}
+
+	require.Empty(t, groupsOf([]string{"openid", "email"}))
+	require.Equal(t, []string{"admin"}, groupsOf([]string{"openid", "groups"}))
 }

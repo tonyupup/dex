@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dexidp/dex/connector"
 	"github.com/dexidp/dex/server/connectors"
 	"github.com/dexidp/dex/server/oauth2"
 	"github.com/dexidp/dex/server/router"
@@ -75,4 +76,18 @@ func stripRemoteHeaders(r *http.Request) {
 			r.Header.Del(key)
 		}
 	}
+}
+
+// connectorScopes returns the connector.Scopes to authenticate authReq with.
+// With sessions enabled the identity is cached in UserIdentity and reused by
+// other clients whose scopes may differ, so the connector is always asked for
+// groups: whether the cache holds them must not depend on which client logged
+// in first. The groups claim is still only emitted for clients that request the
+// groups scope (see tokens.Issuer).
+func (h *Handler) connectorScopes(requested []string) connector.Scopes {
+	scopes := tokens.ParseScopes(requested)
+	if h.Sessions.Enabled() {
+		scopes.Groups = true
+	}
+	return scopes
 }
