@@ -46,7 +46,9 @@ type UserIdentity struct {
 	LastLogin time.Time `json:"last_login,omitempty"`
 	// BlockedUntil holds the value of the "blocked_until" field.
 	BlockedUntil time.Time `json:"blocked_until,omitempty"`
-	selectValues sql.SelectValues
+	// ConnectorScopes holds the value of the "connector_scopes" field.
+	ConnectorScopes []string `json:"connector_scopes,omitempty"`
+	selectValues    sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -54,7 +56,7 @@ func (*UserIdentity) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case useridentity.FieldClaimsGroups, useridentity.FieldConsents, useridentity.FieldMfaSecrets, useridentity.FieldWebauthnCredentials:
+		case useridentity.FieldClaimsGroups, useridentity.FieldConnectorScopes, useridentity.FieldConsents, useridentity.FieldMfaSecrets, useridentity.FieldWebauthnCredentials:
 			values[i] = new([]byte)
 		case useridentity.FieldClaimsEmailVerified:
 			values[i] = new(sql.NullBool)
@@ -169,6 +171,14 @@ func (_m *UserIdentity) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.BlockedUntil = value.Time
 			}
+		case useridentity.FieldConnectorScopes:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field connector_scopes", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ConnectorScopes); err != nil {
+					return fmt.Errorf("unmarshal field connector_scopes: %w", err)
+				}
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -250,6 +260,9 @@ func (_m *UserIdentity) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("blocked_until=")
 	builder.WriteString(_m.BlockedUntil.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("connector_scopes=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ConnectorScopes))
 	builder.WriteByte(')')
 	return builder.String()
 }

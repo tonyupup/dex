@@ -39,6 +39,8 @@ const (
 	FieldLastLogin = "last_login"
 	// FieldBlockedUntil holds the string denoting the blocked_until field in the database.
 	FieldBlockedUntil = "blocked_until"
+	// FieldConnectorScopes holds the string denoting the connector_scopes field in the database.
+	FieldConnectorScopes = "connector_scopes"
 	// Table holds the table name of the useridentity in the database.
 	Table = "user_identities"
 )
@@ -60,6 +62,7 @@ var Columns = []string{
 	FieldCreatedAt,
 	FieldLastLogin,
 	FieldBlockedUntil,
+	FieldConnectorScopes,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).

@@ -193,9 +193,10 @@ func toStorageUserIdentity(u *db.UserIdentity) storage.UserIdentity {
 			EmailVerified:     u.ClaimsEmailVerified,
 			Groups:            u.ClaimsGroups,
 		},
-		CreatedAt:    u.CreatedAt,
-		LastLogin:    u.LastLogin,
-		BlockedUntil: u.BlockedUntil,
+		CreatedAt:       u.CreatedAt,
+		LastLogin:       u.LastLogin,
+		BlockedUntil:    u.BlockedUntil,
+		ConnectorScopes: u.ConnectorScopes,
 	}
 
 	if u.Consents != nil {

@@ -53,6 +53,9 @@ func (UserIdentity) Fields() []ent.Field {
 			SchemaType(timeSchema),
 		field.Time("blocked_until").
 			SchemaType(timeSchema),
+		// Scopes the connector has served for this identity on real logins.
+		field.JSON("connector_scopes", []string{}).
+			Optional(),
 	}
 }
 

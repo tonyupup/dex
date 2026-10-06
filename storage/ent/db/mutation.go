@@ -10336,6 +10336,8 @@ type UserIdentityMutation struct {
 	created_at                *time.Time
 	last_login                *time.Time
 	blocked_until             *time.Time
+	connector_scopes          *[]string
+	appendconnector_scopes    []string
 	clearedFields             map[string]struct{}
 	done                      bool
 	oldValue                  func(context.Context) (*UserIdentity, error)
@@ -11005,6 +11007,71 @@ func (m *UserIdentityMutation) ResetBlockedUntil() {
 	m.blocked_until = nil
 }
 
+// SetConnectorScopes sets the "connector_scopes" field.
+func (m *UserIdentityMutation) SetConnectorScopes(s []string) {
+	m.connector_scopes = &s
+	m.appendconnector_scopes = nil
+}
+
+// ConnectorScopes returns the value of the "connector_scopes" field in the mutation.
+func (m *UserIdentityMutation) ConnectorScopes() (r []string, exists bool) {
+	v := m.connector_scopes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConnectorScopes returns the old "connector_scopes" field's value of the UserIdentity entity.
+// If the UserIdentity object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserIdentityMutation) OldConnectorScopes(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConnectorScopes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConnectorScopes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConnectorScopes: %w", err)
+	}
+	return oldValue.ConnectorScopes, nil
+}
+
+// AppendConnectorScopes adds s to the "connector_scopes" field.
+func (m *UserIdentityMutation) AppendConnectorScopes(s []string) {
+	m.appendconnector_scopes = append(m.appendconnector_scopes, s...)
+}
+
+// AppendedConnectorScopes returns the list of values that were appended to the "connector_scopes" field in this mutation.
+func (m *UserIdentityMutation) AppendedConnectorScopes() ([]string, bool) {
+	if len(m.appendconnector_scopes) == 0 {
+		return nil, false
+	}
+	return m.appendconnector_scopes, true
+}
+
+// ClearConnectorScopes clears the value of the "connector_scopes" field.
+func (m *UserIdentityMutation) ClearConnectorScopes() {
+	m.connector_scopes = nil
+	m.appendconnector_scopes = nil
+	m.clearedFields[useridentity.FieldConnectorScopes] = struct{}{}
+}
+
+// ConnectorScopesCleared returns if the "connector_scopes" field was cleared in this mutation.
+func (m *UserIdentityMutation) ConnectorScopesCleared() bool {
+	_, ok := m.clearedFields[useridentity.FieldConnectorScopes]
+	return ok
+}
+
+// ResetConnectorScopes resets all changes to the "connector_scopes" field.
+func (m *UserIdentityMutation) ResetConnectorScopes() {
+	m.connector_scopes = nil
+	m.appendconnector_scopes = nil
+	delete(m.clearedFields, useridentity.FieldConnectorScopes)
+}
+
 // Where appends a list predicates to the UserIdentityMutation builder.
 func (m *UserIdentityMutation) Where(ps ...predicate.UserIdentity) {
 	m.predicates = append(m.predicates, ps...)
@@ -11039,7 +11106,7 @@ func (m *UserIdentityMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserIdentityMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.user_id != nil {
 		fields = append(fields, useridentity.FieldUserID)
 	}
@@ -11082,6 +11149,9 @@ func (m *UserIdentityMutation) Fields() []string {
 	if m.blocked_until != nil {
 		fields = append(fields, useridentity.FieldBlockedUntil)
 	}
+	if m.connector_scopes != nil {
+		fields = append(fields, useridentity.FieldConnectorScopes)
+	}
 	return fields
 }
 
@@ -11118,6 +11188,8 @@ func (m *UserIdentityMutation) Field(name string) (ent.Value, bool) {
 		return m.LastLogin()
 	case useridentity.FieldBlockedUntil:
 		return m.BlockedUntil()
+	case useridentity.FieldConnectorScopes:
+		return m.ConnectorScopes()
 	}
 	return nil, false
 }
@@ -11155,6 +11227,8 @@ func (m *UserIdentityMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldLastLogin(ctx)
 	case useridentity.FieldBlockedUntil:
 		return m.OldBlockedUntil(ctx)
+	case useridentity.FieldConnectorScopes:
+		return m.OldConnectorScopes(ctx)
 	}
 	return nil, fmt.Errorf("unknown UserIdentity field %s", name)
 }
@@ -11262,6 +11336,13 @@ func (m *UserIdentityMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetBlockedUntil(v)
 		return nil
+	case useridentity.FieldConnectorScopes:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConnectorScopes(v)
+		return nil
 	}
 	return fmt.Errorf("unknown UserIdentity field %s", name)
 }
@@ -11301,6 +11382,9 @@ func (m *UserIdentityMutation) ClearedFields() []string {
 	if m.FieldCleared(useridentity.FieldWebauthnCredentials) {
 		fields = append(fields, useridentity.FieldWebauthnCredentials)
 	}
+	if m.FieldCleared(useridentity.FieldConnectorScopes) {
+		fields = append(fields, useridentity.FieldConnectorScopes)
+	}
 	return fields
 }
 
@@ -11323,6 +11407,9 @@ func (m *UserIdentityMutation) ClearField(name string) error {
 		return nil
 	case useridentity.FieldWebauthnCredentials:
 		m.ClearWebauthnCredentials()
+		return nil
+	case useridentity.FieldConnectorScopes:
+		m.ClearConnectorScopes()
 		return nil
 	}
 	return fmt.Errorf("unknown UserIdentity nullable field %s", name)
@@ -11373,6 +11460,9 @@ func (m *UserIdentityMutation) ResetField(name string) error {
 		return nil
 	case useridentity.FieldBlockedUntil:
 		m.ResetBlockedUntil()
+		return nil
+	case useridentity.FieldConnectorScopes:
+		m.ResetConnectorScopes()
 		return nil
 	}
 	return fmt.Errorf("unknown UserIdentity field %s", name)

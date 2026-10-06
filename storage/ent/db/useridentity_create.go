@@ -144,6 +144,12 @@ func (_c *UserIdentityCreate) SetBlockedUntil(v time.Time) *UserIdentityCreate {
 	return _c
 }
 
+// SetConnectorScopes sets the "connector_scopes" field.
+func (_c *UserIdentityCreate) SetConnectorScopes(v []string) *UserIdentityCreate {
+	_c.mutation.SetConnectorScopes(v)
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *UserIdentityCreate) SetID(v string) *UserIdentityCreate {
 	_c.mutation.SetID(v)
@@ -347,6 +353,10 @@ func (_c *UserIdentityCreate) createSpec() (*UserIdentity, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.BlockedUntil(); ok {
 		_spec.SetField(useridentity.FieldBlockedUntil, field.TypeTime, value)
 		_node.BlockedUntil = value
+	}
+	if value, ok := _c.mutation.ConnectorScopes(); ok {
+		_spec.SetField(useridentity.FieldConnectorScopes, field.TypeJSON, value)
+		_node.ConnectorScopes = value
 	}
 	return _node, _spec
 }

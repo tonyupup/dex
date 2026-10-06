@@ -251,6 +251,7 @@ var (
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"mysql": "datetime(3)", "postgres": "timestamptz", "sqlite3": "timestamp"}},
 		{Name: "last_login", Type: field.TypeTime, SchemaType: map[string]string{"mysql": "datetime(3)", "postgres": "timestamptz", "sqlite3": "timestamp"}},
 		{Name: "blocked_until", Type: field.TypeTime, SchemaType: map[string]string{"mysql": "datetime(3)", "postgres": "timestamptz", "sqlite3": "timestamp"}},
+		{Name: "connector_scopes", Type: field.TypeJSON, Nullable: true},
 	}
 	// UserIdentitiesTable holds the schema information for the "user_identities" table.
 	UserIdentitiesTable = &schema.Table{

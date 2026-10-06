@@ -217,6 +217,24 @@ func (_u *UserIdentityUpdate) SetNillableBlockedUntil(v *time.Time) *UserIdentit
 	return _u
 }
 
+// SetConnectorScopes sets the "connector_scopes" field.
+func (_u *UserIdentityUpdate) SetConnectorScopes(v []string) *UserIdentityUpdate {
+	_u.mutation.SetConnectorScopes(v)
+	return _u
+}
+
+// AppendConnectorScopes appends value to the "connector_scopes" field.
+func (_u *UserIdentityUpdate) AppendConnectorScopes(v []string) *UserIdentityUpdate {
+	_u.mutation.AppendConnectorScopes(v)
+	return _u
+}
+
+// ClearConnectorScopes clears the value of the "connector_scopes" field.
+func (_u *UserIdentityUpdate) ClearConnectorScopes() *UserIdentityUpdate {
+	_u.mutation.ClearConnectorScopes()
+	return _u
+}
+
 // Mutation returns the UserIdentityMutation object of the builder.
 func (_u *UserIdentityUpdate) Mutation() *UserIdentityMutation {
 	return _u.mutation
@@ -331,6 +349,17 @@ func (_u *UserIdentityUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.BlockedUntil(); ok {
 		_spec.SetField(useridentity.FieldBlockedUntil, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.ConnectorScopes(); ok {
+		_spec.SetField(useridentity.FieldConnectorScopes, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedConnectorScopes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, useridentity.FieldConnectorScopes, value)
+		})
+	}
+	if _u.mutation.ConnectorScopesCleared() {
+		_spec.ClearField(useridentity.FieldConnectorScopes, field.TypeJSON)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -540,6 +569,24 @@ func (_u *UserIdentityUpdateOne) SetNillableBlockedUntil(v *time.Time) *UserIden
 	return _u
 }
 
+// SetConnectorScopes sets the "connector_scopes" field.
+func (_u *UserIdentityUpdateOne) SetConnectorScopes(v []string) *UserIdentityUpdateOne {
+	_u.mutation.SetConnectorScopes(v)
+	return _u
+}
+
+// AppendConnectorScopes appends value to the "connector_scopes" field.
+func (_u *UserIdentityUpdateOne) AppendConnectorScopes(v []string) *UserIdentityUpdateOne {
+	_u.mutation.AppendConnectorScopes(v)
+	return _u
+}
+
+// ClearConnectorScopes clears the value of the "connector_scopes" field.
+func (_u *UserIdentityUpdateOne) ClearConnectorScopes() *UserIdentityUpdateOne {
+	_u.mutation.ClearConnectorScopes()
+	return _u
+}
+
 // Mutation returns the UserIdentityMutation object of the builder.
 func (_u *UserIdentityUpdateOne) Mutation() *UserIdentityMutation {
 	return _u.mutation
@@ -684,6 +731,17 @@ func (_u *UserIdentityUpdateOne) sqlSave(ctx context.Context) (_node *UserIdenti
 	}
 	if value, ok := _u.mutation.BlockedUntil(); ok {
 		_spec.SetField(useridentity.FieldBlockedUntil, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.ConnectorScopes(); ok {
+		_spec.SetField(useridentity.FieldConnectorScopes, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedConnectorScopes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, useridentity.FieldConnectorScopes, value)
+		})
+	}
+	if _u.mutation.ConnectorScopesCleared() {
+		_spec.ClearField(useridentity.FieldConnectorScopes, field.TypeJSON)
 	}
 	_node = &UserIdentity{config: _u.config}
 	_spec.Assign = _node.assignValues

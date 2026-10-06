@@ -48,6 +48,7 @@ func (d *Database) CreateUserIdentity(ctx context.Context, identity storage.User
 		SetCreatedAt(identity.CreatedAt).
 		SetLastLogin(identity.LastLogin).
 		SetBlockedUntil(identity.BlockedUntil).
+		SetConnectorScopes(identity.ConnectorScopes).
 		Save(ctx)
 	if err != nil {
 		return convertDBError("create user identity: %w", err)
@@ -134,6 +135,7 @@ func (d *Database) UpdateUserIdentity(ctx context.Context, userID string, connec
 		SetCreatedAt(newUserIdentity.CreatedAt).
 		SetLastLogin(newUserIdentity.LastLogin).
 		SetBlockedUntil(newUserIdentity.BlockedUntil).
+		SetConnectorScopes(newUserIdentity.ConnectorScopes).
 		Save(ctx)
 	if err != nil {
 		return rollback(tx, "update user identity uploading: %w", err)
